@@ -1,0 +1,182 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+<input type="hidden" value="0" id="countLocation">
+<script>
+
+    initialize();
+    function initialize() {
+        // alert("called");
+
+        if (window.EventSource == undefined) {
+            // If not supported
+            document.getElementById('targetDiv').innerHTML = "Your browser doesn't support Server Sent Events.";
+            return;
+        } else {
+            var source = new EventSource('/map/message');
+
+            source.onopen = function (event) {
+                // document.getElementById('targetDiv').innerHTML += 'Connection Opened.<br>';
+            };
+
+            source.onerror = function (event) {
+                if (event.eventPhase == EventSource.CLOSED) {
+                    // document.getElementById('targetDiv').innerHTML += 'Connection Closed.<br>';
+                }
+            };
+
+            source.onmessage = function (event) {
+
+                var countLocation = $("#countLocation").val();                
+                var data = event.data;
+                var items = JSON.parse(data);
+                var sizeData = JSON.parse(data).length;
+                if (countLocation < sizeData) {
+                    $("#countLocation").val(sizeData);
+                       $("#targetDiv").empty();
+                        $.each(JSON.parse(data), function (i, item) {
+                            $("#targetDiv").append('<li><img src="'+ item.LocationMapImageUrl +'" /> '+ item.LocationMapName + '</li>');
+                        });
+                    initMap(items);
+                }
+            };
+        }
+    }
+</script>
+
+
+
+
+
+<div id="map"></div>
+
+
+
+
+<div class="row">
+    <div class="col-8">
+        <div id="targetDiv">
+            <ul></ul>
+        </div>
+    </div>
+    <div class="col-4">
+        <h2>Add New Map</h2>
+        <form>
+            <div class="form-group">
+                <label for="MapName">Map Name</label>
+                <input type="text" class="form-control" required id="MapName" aria-describedby="MapNameHelp" placeholder="Enter Map Name">
+                <small id="MapNameHelp" class="form-text text-muted">Input Map Name</small>
+            </div>
+            <div class="form-group">
+                <label for="Latitude">Latitude</label>
+                <input type="text" class="form-control" required id="Latitude" placeholder="Enter Latitude">
+            </div>
+            <div class="form-group">
+                <label for="Longtitude">Longtitude</label>
+                <input type="text" class="form-control" required id="Longtitude" placeholder="Enter Longtitude">
+
+            </div>
+            <div class="form-group">
+                <label for="exampleInputEmail1">Icon Url</label>
+                <input type="text" class="form-control" id="IconUrl" placeholder="Enter IconUrl">
+            </div>
+            <button type="button" onclick="AddMap()" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+</div>
+<a href="http://kml4earth.appspot.com/icons.html">Find Icons</a>
+
+    <script>
+        // var jsonObj = [{ "location": "Sayuri", "lat": "18.7903474", "lng": "99.0080897" },
+        //  { "location": "ที่ๆ มี SUPER MVP OF THE WORLD ชื่อ APICHAI ", "lat": "18.7704325", "lng": "98.9499171" }/*,
+        //  {"location":"สปีดเวย์", "lat": "13.845235", "lng": "100.602711"},
+        //  {"location":"สเต็ก ลุงหนวด", "lat": "13.862970", "lng": "100.613834"}*/]
+
+        function initMap(jsonObj) {
+            console.log(jsonObj)
+            var mapOptions = {
+                center: { lat: 18.7902091, lng: 98.987271 },
+                zoom: 14,
+            }
+
+            var maps = new google.maps.Map(document.getElementById("map"), mapOptions);
+
+            var marker, info;
+            var imageIcon = 'https://developers.google.com/maps/documentation/javascript/examples/full/images/beachflag.png';
+
+            $.each(jsonObj, function (i, item) {
+
+                if (item.LocationMapImageUrl != null) {
+                    imageIcon = item.LocationMapImageUrl
+                }
+
+                marker = new google.maps.Marker({
+                    position: new google.maps.LatLng(item.Latitude, item.Longitude),
+                    map: maps,
+                    title: item.LocationMapName,
+                    icon: imageIcon
+
+                });
+
+                info = new google.maps.InfoWindow();
+
+                google.maps.event.addListener(marker, 'click', (function (marker, i) {
+                    return function () {
+                        info.setContent(item.LocationMapName);
+                        info.open(maps, marker);
+                    }
+                })(marker, i));
+
+            });
+        }
+
+        function AddMap() {
+
+            var MapName = $("#MapName").val();
+            var Latitude = $("#Latitude").val();
+            var Longtitude = $("#Longtitude").val();
+            var IconUrl = $("#IconUrl").val();
+
+            var obj = {
+                Name: MapName,
+                Lat: Latitude,
+                Long: Longtitude,
+                Url: IconUrl
+            }
+
+            $.ajax({
+                type: "POST",
+                url: "/map/AddMap",
+                data: obj, // serializes the form's elements.
+                success: function (data) {
+                    alert(data); // show response from the php script.
+
+                    $("#MapName").val('');
+                    $("#Latitude").val('');
+                    $("#Longtitude").val('');
+                    $("#IconUrl").val('');
+                }
+            });
+        }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQFpsNCBLGs8JQYhN3MxVxr-nuHM05vTs&callback=initialize" async defer></script>
+    <style>
+         /* Always set the map height explicitly to define the size of the div
+        * element that contains the map. */
+         #map {
+             height: 100%;
+         }
+         /* Optional: Makes the sample page fill the window. */
+         html {
+             height: 100%;
+             margin: 0;
+             padding: 0;
+             text-align: center;
+         }
+
+         #map {
+             height: 350px;
+             width: 100%;
+         }
+    </style>
